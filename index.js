@@ -4,18 +4,19 @@ import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import axios from "axios";
 
-// تحميل متغيرات البيئة (فقط إذا كنت تستخدم .env محليًا)
+// تحميل متغيرات البيئة
 dotenv.config();
 
 const app = express();
 
-// تفعيل CORS للجميع (مهم للتجريب من HTML خارجي)
+// تفعيل CORS لجميع المواقع
 app.use(cors({ origin: "*" }));
-
 app.use(bodyParser.json());
 
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+// رابط API الخاص بـ Gemini Flash
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
+// نقطة النهاية
 app.post("/api/gemini", async (req, res) => {
   const { prompt } = req.body;
 
@@ -30,7 +31,9 @@ app.post("/api/gemini", async (req, res) => {
         contents: [
           {
             parts: [
-              { text: prompt } // 👈 بدون أي تعديل أو إضافات
+              {
+                text: prompt // 🔥 هنا ما ضفنا "جاوب بسخرية"، جاي من HTML مباشرة
+              }
             ]
           }
         ]
@@ -51,6 +54,7 @@ app.post("/api/gemini", async (req, res) => {
   }
 });
 
+// منفذ التشغيل
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ الخادم يعمل على http://localhost:${PORT}`);
