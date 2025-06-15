@@ -1,19 +1,25 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
+import dotenv from "dotenv";
 import axios from "axios";
 
-// ما في داعي لـ dotenv لأننا على Render والمفتاح موجود كمتغيّر بيئة
+// تحميل المتغيرات من البيئة (مش من ملف .env)
+dotenv.config(); // فقط لو كنت تستخدمها محليًا
 
 const app = express();
-app.use(cors());
+
+// ✅ تفعيل CORS لجميع المواقع
+app.use(cors({
+  origin: "*"
+}));
+
 app.use(bodyParser.json());
 
+// رابط API الخاص بـ Google Gemini
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
 
-// تأكد إنك خزّنت المفتاح باسم: GEMINI_API_KEY في إعدادات Render
-const API_KEY = process.env.GEMINI_API_KEY;
-
+// نقطة النهاية لتلقي الطلبات من المتصفح
 app.post("/api/gemini", async (req, res) => {
   const { prompt } = req.body;
 
@@ -23,20 +29,27 @@ app.post("/api/gemini", async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${GEMINI_API_URL}?key=${API_KEY}`,
+      `${GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`,
       {
         contents: [
           {
             parts: [
-              { text: `جاوب بسخرية: ${prompt}` }
+              {
+                text: `جاوب بسخرية: ${prompt}`
+              }
             ]
           }
         ]
+      },
+      {
+        headers: {
+          "Content-Type": "application/json"
+        }
       }
     );
 
-    const result = response.data.candidates?.[0]?.content?.parts?.[0]?.text || "ما في رد.";
-    res.json({ text: result });
+    const result = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "ما في رد.";
+    res.json({ response: result });
 
   } catch (err) {
     console.error("خطأ في الاتصال بـ Gemini:", err.response?.data || err.message);
@@ -44,6 +57,7 @@ app.post("/api/gemini", async (req, res) => {
   }
 });
 
+// منفذ الاستماع
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ الخادم يعمل على http://localhost:${PORT}`);
