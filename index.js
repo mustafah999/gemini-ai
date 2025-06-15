@@ -4,22 +4,19 @@ import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import axios from "axios";
 
-// تحميل المتغيرات من البيئة (مش من ملف .env)
-dotenv.config(); // فقط لو كنت تستخدمها محليًا
+// تحميل المتغيرات من البيئة
+dotenv.config(); // فقط لو كنت تجرب محلياً
 
 const app = express();
 
-// ✅ تفعيل CORS لجميع المواقع
-app.use(cors({
-  origin: "*"
-}));
-
+// ✅ تفعيل CORS لجميع المواقع (مهم للمتصفح)
+app.use(cors({ origin: "*" }));
 app.use(bodyParser.json());
 
-// رابط API الخاص بـ Google Gemini
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+// ✅ رابط API الخاص بـ Google Gemini 2.0 Flash
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
-// نقطة النهاية لتلقي الطلبات من المتصفح
+// نقطة النهاية لتلقي الطلبات من HTML أو أي تطبيق
 app.post("/api/gemini", async (req, res) => {
   const { prompt } = req.body;
 
