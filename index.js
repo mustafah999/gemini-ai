@@ -45,13 +45,18 @@ app.post("/api/gemini", async (req, res) => {
       }
     );
 
-    const result = response.data?.candidates?.?.content?.parts?.?.text |
-
-| "ما في رد.";
+    // تعديل هنا: استبدال?. بتحققات &&
+    let result = "ما في رد.";
+    if (response.data && response.data.candidates && response.data.candidates &&
+        response.data.candidates.content && response.data.candidates.content.parts &&
+        response.data.candidates.content.parts) {
+      result = response.data.candidates.content.parts.text;
+    }
     res.json({ response: result });
 
   } catch (err) {
-    console.error("خطأ في الاتصال بـ Gemini:", err.response?.data |
+    // تعديل هنا: استبدال?. بتحققات &&
+    console.error("خطأ في الاتصال بـ Gemini:", (err.response? err.response.data : null) |
 
 | err.message);
 
@@ -63,17 +68,13 @@ app.post("/api/gemini", async (req, res) => {
     if (err.response) {
       const statusCode = err.response.status;
       const errorData = err.response.data;
-      const errorMessage = errorData?.error?.message |
-
-| '';
-      const errorStatus = errorData?.error?.status |
-
-| '';
+      // تعديل هنا: استبدال?. بتحققات &&
+      const errorMessage = (errorData && errorData.error && errorData.error.message)? errorData.error.message : '';
+      const errorStatus = (errorData && errorData.error && errorData.error.status)? errorData.error.status : '';
 
       httpStatus = statusCode; // نستخدم رمز حالة HTTP الفعلي من استجابة Gemini API
 
       // 1. التحقق الأساسي من انتهاء الحصة/حد المعدل (HTTP 429)
-      // هذا هو المؤشر الأكثر مباشرة لانتهاء التوكنات أو تجاوز حدود الاستخدام [1, 2, 3]
       if (statusCode === 429) {
         if (errorStatus === "RESOURCE_EXHAUSTED" ||
             errorMessage.includes("Resource has been exhausted") ||
@@ -82,13 +83,11 @@ app.post("/api/gemini", async (req, res) => {
           customCode = "QUOTA_EXCEEDED";
           customMessage = "عذراً، لقد انتهت التوكنات الشهرية المجانية أو تجاوزت حدود الاستخدام.";
         } else {
-          // إذا كان 429 ولكن ليس بسبب استنفاد الموارد، فقد يكون حد معدل مؤقت آخر
           customCode = "RATE_LIMIT_TEMPORARY";
           customMessage = "تم تجاوز حد المعدل مؤقتاً. يرجى المحاولة لاحقاً.";
         }
       }
       // 2. مشاكل الفوترة/الطبقة المجانية (HTTP 400 FAILED_PRECONDITION)
-      // هذه المشاكل تمنع الاستخدام فعلياً بسبب قيود الحصص/الطبقة المجانية [1]
       else if (statusCode === 400 && errorStatus === "FAILED_PRECONDITION") {
         if (errorMessage.includes("free tier is not available in your country") ||
             errorMessage.includes("Please enable billing on your project")) {
@@ -96,13 +95,11 @@ app.post("/api/gemini", async (req, res) => {
           customCode = "BILLING_REQUIRED_OR_GEO_RESTRICTED";
           customMessage = "الطبقة المجانية غير متاحة في بلدك أو الفوترة غير مفعلة. يرجى تفعيل الفوترة.";
         } else {
-          // 400 آخر غير متعلق بالحصص
           customCode = "INVALID_REQUEST_ARGUMENT";
           customMessage = `خطأ في الطلب: ${errorMessage}`;
         }
       }
       // 3. مشاكل الأذونات/مشروع الحصة (HTTP 403 PERMISSION_DENIED)
-      // هذه المشاكل تمنع الاستخدام بسبب إعدادات غير صحيحة تتعلق بالحصص أو المفتاح [1, 4]
       else if (statusCode === 403 && errorStatus === "PERMISSION_DENIED") {
         if (errorMessage.includes("API key doesn't have the required permissions") ||
             errorMessage.includes("No quota project set")) {
@@ -110,7 +107,6 @@ app.post("/api/gemini", async (req, res) => {
           customCode = "PERMISSION_DENIED_QUOTA_RELATED";
           customMessage = "مشكلة في مفتاح API أو إعدادات الفوترة/المشروع. يرجى التحقق من الأذونات.";
         } else {
-          // 403 آخر غير متعلق بالحصص
           customCode = "PERMISSION_DENIED_GENERIC";
           customMessage = `خطأ في الأذونات: ${errorMessage}`;
         }
@@ -132,7 +128,7 @@ app.post("/api/gemini", async (req, res) => {
     res.status(httpStatus).json({
       error: customMessage,
       code: customCode,
-      isQuotaExceeded: isQuotaExceeded // هذا العلم هو المفتاح للواجهة الأمامية
+      isQuotaExceeded: isQuotaExceeded
     });
   }
 });
