@@ -56,6 +56,7 @@ app.post("/api/gemini", async (req, res) => {
 
     // ✅ تحقق شامل من انتهاء التوكنات أو الحصة
     const quotaMessages = [
+      "you exceeded your current quota, please check your plan and billing details",
       "resource has been exhausted",
       "you exceeded your current quota",
       "quota exceeded",
@@ -65,9 +66,9 @@ app.post("/api/gemini", async (req, res) => {
       "project has exceeded its quota limits"
     ];
 
-    const isQuotaError = status === 429 && quotaMessages.some(m => message.includes(m));
-
+    const isQuotaError = status === 429 || quotaMessages.some(m => message.includes(m));
     if (isQuotaError) {
+      
       return res.status(429).json({ error: "quota_exceeded" });
     }
 
