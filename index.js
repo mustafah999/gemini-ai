@@ -11,13 +11,15 @@ const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent";
+// === التعديل: العودة إلى طراز Flash للحصول على سرعة استجابة عالية ===
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
+// === التعديل: ضبط حدود الحصص لتطابق طراز 2.5 Flash ===
 const QUOTA_LIMITS = {
-  RPM: 5,
-  TPM: 1000000,
-  RPD: 100,
-  TPD: 200000000
+  RPM: 10,      // الطلبات في الدقيقة
+  TPM: 1000000, // التوكنات في الدقيقة (تقديري)
+  RPD: 250,     // الطلبات في اليوم
+  TPD: 200000000 // التوكنات في اليوم (تقديري)
 };
 
 let currentMinuteRequests = 0;
@@ -42,7 +44,6 @@ function resetAndRefreshQuotas() {
   }
 }
 
-// دالة مساعدة للانتظار
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 app.post("/api/gemini", async (req, res) => {
@@ -60,9 +61,8 @@ app.post("/api/gemini", async (req, res) => {
     return res.status(429).json({ error: "لقد تجاوزت الحد اليومي المسموح به من الطلبات.", type: "daily_requests_exceeded" });
   }
 
-  // === إضافة جديدة: منطق إعادة المحاولة مع التراجع الأسي ===
-  const maxRetries = 5; // عدد أقصى للمحاولات
-  let delay = 1000; // يبدأ الانتظار من ثانية واحدة
+  const maxRetries = 5;
+  let delay = 1000;
 
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -83,24 +83,21 @@ app.post("/api/gemini", async (req, res) => {
       currentDailyRequests++;
       currentDailyTokens += totalTokensUsed;
       
-      return res.json({ response: result, type: "success" }); // نجح الطلب، أرسل الرد واخرج
+      return res.json({ response: result, type: "success" });
 
     } catch (err) {
       const status = err.response?.status;
       const message = err.response?.data?.error?.message?.toLowerCase() || "";
       
-      // تحقق إذا كان الخطأ بسبب الضغط الزائد
       if (status === 503 || message.includes("overloaded")) {
         if (i === maxRetries - 1) {
-          // إذا كانت هذه آخر محاولة، أرسل الخطأ
           console.error(`فشلت جميع المحاولات. آخر خطأ: ${message}`);
           return res.status(503).json({ error: "النموذج لا يزال محملاً بشكل زائد بعد عدة محاولات.", type: "model_overloaded" });
         }
         console.log(`النموذج محمّل بشكل زائد. إعادة المحاولة بعد ${delay / 1000} ثانية... (المحاولة ${i + 1})`);
-        await sleep(delay); // انتظر
-        delay *= 2; // ضاعف مدة الانتظار للمحاولة التالية
+        await sleep(delay);
+        delay *= 2;
       } else {
-        // إذا كان الخطأ لسبب آخر، تعامل معه كالمعتاد واخرج من الحلقة
         console.error("خطأ في الاتصال بـ Gemini:", message || err.message);
         const quotaMessages = ["resource has been exhausted", "you exceeded your current quota", "quota exceeded", "the request was blocked due to quota limits"];
         const isQuotaError = status === 429 && quotaMessages.some(m => message.includes(m));
